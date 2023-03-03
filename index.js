@@ -125,7 +125,8 @@ function getTeams(input) {
           let currentSkin = message.getInt32(6 + 2 * currentUsername.length);
           let currentTeam = -1;
           let currentBadge =
-            message.byteLength >= 6 + 2 * currentUsername.length + 4 + 4 + 1;
+            message.byteLength >= 6 + 2 * currentUsername.length + 4 + 4 + 1 &&
+						(message.getUint8(6 + 2 * currentUsername.length + 4 + 4));
 
           message.byteLength >= 6 + 2 * currentUsername.length + 4 + 4 - 1 &&
             (currentTeam = message.getInt32(
