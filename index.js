@@ -19,7 +19,7 @@ function writeString(buffer, idx, str) {
 
 function getAddress(input) {
   const address = REGION_LIST.find((i) => i.alias === input.region);
-  if (!address) reject("Server needs to be use, usw, or eu");
+  if (!address) throw new Error("Server needs to be use, usw, or eu");
   return {
     ws: `wss://${address.ws}.defly.io/${input.port}`,
     region: address.region,
@@ -28,7 +28,6 @@ function getAddress(input) {
 
 function jsonResponse(data, status = 200) {
   const json = JSON.stringify(data);
-
   return [
     json,
     {
@@ -56,14 +55,20 @@ const REGION_LIST = [
 ];
 
 const TEAM_COLORS = {
+  0: { color: "Black", hex: "000000" },
+  1: { color: "Grey", hex: "4d4d4d" },
   2: { color: "Blue", hex: "3d5dff" },
   3: { color: "Red", hex: "fd3535" },
   4: { color: "Dark Green", hex: "008037" },
-  5: { color: "Orange", hex: "ff8a2" },
+  5: { color: "Orange", hex: "ff8a2a" },
   6: { color: "Purple", hex: "924bff" },
   7: { color: "Sky Blue", hex: "55d5ff" },
   8: { color: "Green", hex: "18e21f" },
   9: { color: "Pink", hex: "f659ff" },
+  10: { color: "Yellow", hex: "f7ff2a" },
+  11: { color: "Rose", hex: "ff5eae" },
+  12: { color: "Lime", hex: "93fe00" },
+  13: { color: "Turquoise", hex: "00ffbb" },
 };
 
 function getTeams(input) {
@@ -75,6 +80,7 @@ function getTeams(input) {
 
     async function join() {
       const regionFromInput = getAddress(input);
+
       let socket = new WebSocket(regionFromInput.ws);
 
       socket.binaryType = "arraybuffer";
@@ -112,8 +118,7 @@ function getTeams(input) {
       });
 
       let members = [];
-      let tourneyTeams = {};
-      let teamIDs = [];
+      let tourneyTeams = null;
 
       socket.addEventListener("message", (event) => {
         const message = new DataView(event.data);
@@ -140,14 +145,8 @@ function getTeams(input) {
             currentTeam,
             currentBadge,
           });
-        } else if (code === 57) {
-          teamIDs = readString(message, 1).replace(/ +/g, "").split("-");
-        } else if (code === 59) {
-          const teamNames = readString(message, 1).split(";");
-
-          teamIDs.forEach((teamID, index) => {
-            tourneyTeams[teamID] = teamNames[teamID];
-          });
+        }  else if (code === 59) {
+          tourneyTeams = readString(message, 1).split(";");
         } else if (code === 35) {
           const results = [];
           const maxSize = message.getUint8(1);
@@ -197,12 +196,12 @@ function getTeams(input) {
             member.badge = i.currentBadge;
           });
 
-          results.forEach((i) => {
+          results.forEach((i, index) => {
             i.team = TEAM_COLORS[i.teamID];
-            // if (tourneyTeams !== {}) {
-            // 	i.team.color = tourneyTeams[i.teamID];
-            //	i.team.hex = TEAM_COLORS[i.teamID].hex;
-            // }
+            if (tourneyTeams) {
+              i.team.color = tourneyTeams[index];
+            }
+            
             i.team.ID = i.teamID;
             delete i.teamID;
           });
