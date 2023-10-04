@@ -19,7 +19,6 @@ function writeString(buffer, idx, str) {
 
 function getAddress(input) {
   const address = REGION_LIST.find((i) => i.alias === input.region);
-  if (!address) throw new Error("Server needs to be use, usw, or eu");
   return {
     ws: `wss://${address.ws}.defly.io/${input.port}`,
     region: address.region,
@@ -80,6 +79,7 @@ function getTeams(input) {
 
     async function join() {
       const regionFromInput = getAddress(input);
+      if (!regionFromInput) return reject("Server needs to be use, usw, or eu");
 
       let socket = new WebSocket(regionFromInput.ws);
 
@@ -197,7 +197,10 @@ function getTeams(input) {
           });
 
           results.forEach((i, index) => {
-            i.team = TEAM_COLORS[i.teamID];
+            i.team = TEAM_COLORS[i.teamID] ?? {
+              color: 'Unknown', 
+              hex: '000000'
+            };
             if (tourneyTeams) {
               i.team.color = tourneyTeams[index];
             }
