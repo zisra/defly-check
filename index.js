@@ -75,7 +75,6 @@ function getTeams(input) {
     const gamesPlayed = 0;
     const username = "Player";
     const skin = 1;
-    const timeout = 2000;
 
     async function join() {
       const regionFromInput = getAddress(input);
@@ -83,19 +82,18 @@ function getTeams(input) {
 
       let socket = new WebSocket(regionFromInput.ws);
 
-      socket.binaryType = "arraybuffer";
       socket.addEventListener("open", async (e) => {
-        let sessionData = await fetch(
-          `https://s.defly.io/?r=${regionFromInput.region}&m=1&u=Player&fu=Player`
+        const sessionData = await fetch(
+          `https://s.defly.io/?r=${regionFromInput.region}&m=1&u=Player&fu=Player`,
         );
-        sessionData = await sessionData.text();
+        const sessionDataString = await sessionData.text();
 
-        const session = sessionData.split(" ")[1];
+        const session = sessionDataString.split(" ")[1];
 
         let socketBuffer = new DataView(
           new ArrayBuffer(
-            2 + 2 * username.length + 1 + 2 * session.length + 4 + 4
-          )
+            2 + 2 * username.length + 1 + 2 * session.length + 4 + 4,
+          ),
         );
 
         socketBuffer.setUint8(0, 1);
@@ -103,11 +101,11 @@ function getTeams(input) {
         writeString(socketBuffer, 2 + 2 * username.length, session);
         socketBuffer.setInt32(
           2 + 2 * username.length + 1 + 2 * session.length,
-          skin
+          skin,
         );
         socketBuffer.setInt32(
           2 + 2 * username.length + 1 + 2 * session.length + 4,
-          gamesPlayed
+          gamesPlayed,
         );
 
         socket.send(socketBuffer.buffer);
@@ -119,6 +117,7 @@ function getTeams(input) {
 
       let members = [];
       let tourneyTeams = null;
+      let teamIDs = null;
 
       socket.addEventListener("message", (event) => {
         const message = new DataView(event.data);
@@ -131,11 +130,11 @@ function getTeams(input) {
           let currentTeam = -1;
           let currentBadge =
             message.byteLength >= 6 + 2 * currentUsername.length + 4 + 4 + 1 &&
-						(message.getUint8(6 + 2 * currentUsername.length + 4 + 4));
+            message.getUint8(6 + 2 * currentUsername.length + 4 + 4);
 
           message.byteLength >= 6 + 2 * currentUsername.length + 4 + 4 - 1 &&
             (currentTeam = message.getInt32(
-              6 + 2 * currentUsername.length + 4
+              6 + 2 * currentUsername.length + 4,
             ));
 
           members.push({
@@ -145,7 +144,9 @@ function getTeams(input) {
             currentTeam,
             currentBadge,
           });
-        }  else if (code === 59) {
+        } else if (code === 57) {
+          teamIDs = readString(message, 1).replace(/ +/g, "").split("-");
+        } else if (code === 59) {
           tourneyTeams = readString(message, 1).split(";");
         } else if (code === 35) {
           const results = [];
@@ -197,14 +198,27 @@ function getTeams(input) {
           });
 
           results.forEach((i, index) => {
-            i.team = TEAM_COLORS[i.teamID] ?? {
-              color: 'Unknown', 
-              hex: '000000'
-            };
+            if (teamIDs) {
+              i.team = TEAM_COLORS[parseInt(teamIDs[index]) + 1] ?? {
+                color: "Unknown",
+                hex: "000000",
+                colorID: parseInt(teamIDs[index]) + 1,
+              };
+            } else {
+              i.team = TEAM_COLORS[i.teamID] ?? {
+                color: "Unknown",
+                hex: "000000",
+                colorID: i.teamID,
+              };
+            }
+
             if (tourneyTeams) {
               i.team.color = tourneyTeams[index];
             }
-            
+
+            console.log(teamIDs);
+            console.log(tourneyTeams);
+
             i.team.ID = i.teamID;
             delete i.teamID;
           });
@@ -227,7 +241,7 @@ export default {
     try {
       const { searchParams, pathname } = new URL(request.url);
 
-      if (pathname === '/') {
+      if (pathname === "/") {
         const region = searchParams.get("region");
         const port = searchParams.get("port");
 
